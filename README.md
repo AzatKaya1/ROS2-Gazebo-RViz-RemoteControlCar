@@ -92,11 +92,8 @@ def generate_launch_description():
 
 ```
 
-``` Ctrl+O ``` , ``` Enter ``` and ``` Ctrl+X ```
 
-
-
-## 4. Edit the CMakeLists.txt File.
+- **Edit the CMakeLists.txt File.**
 
 In ROS2, files must be copied to the install directory during build, which we specify in CMakeLists.txt.
 
@@ -112,11 +109,9 @@ install(DIRECTORY urdf launch
   DESTINATION share/${PROJECT_NAME}
 )
 ```
-``` Ctrl+O ``` , ``` Enter ``` and ``` Ctrl+X ```
 
 
-
-## 5. Introduce the Environment (Build)
+- **Introduce the Environment (Build)**
 
 Register code with ROS. That's, build the workspace. Then, refresh the sources.
 
@@ -128,7 +123,7 @@ source install/setup.bash
 ```
 
 
-## 6. Visualize the Robot
+## 4. Visualize the Robot
 
 Run launch file.
 
@@ -136,7 +131,7 @@ Run launch file.
 ros2 launch my_robot_description display.launch.py
 ```
 
-## 7. Required RViz Settings
+## 5. Required RViz Settings
 
 When rviz is first turned on, a blank screen appears. Follow these steps to bring the robot into the environment:
 
@@ -147,9 +142,13 @@ When rviz is first turned on, a blank screen appears. Follow these steps to brin
    **BOOOM!** Our body has arrived.
 
  
- ## 8. Load the Wheel Control Panel.
+ ## 6. Load the Wheel Control Panel.
+
+[ENG]
+
 In the URDF code, you will set the wheels to ``` type=continuous ```. This tells ROS that "these wheels are motorized and can rotate around their own axis". You need to send the angle information (Joint State) of the wheels. Add a control panel (Joint State Publisher GUI) to the screen where you can rotate the wheels by dragging them manually.
 
+[TR]
 
 (URDF kodunda tekerlekleri ``` type=continuous ```  olarak ayarlayacaksın. Bu, ROS’a “bu tekerlekler motorlu ve kendi ekseni etrafında dönebilir” demektir. Tekerleklerin açı bilgisini göndermeniz gerekir. Ekrana, tekerlekleri el ile sürükleyerek döndürebileceğiniz bir kontrol paneli ekleyin.)
 
@@ -187,7 +186,6 @@ def generate_launch_description():
             executable='robot_state_publisher',
             parameters=[{'robot_description': robot_desc}]
         ),
-        # İŞTE YENİ EKLEDİĞİMİZ KONTROL PANELİ DÜĞÜMÜ
         Node(
             package='joint_state_publisher_gui',
             executable='joint_state_publisher_gui',
@@ -203,7 +201,7 @@ def generate_launch_description():
 
 ```
 
-## 9. Adding to a URDF File (Like Wheels, etc.)
+## 7. Adding to a URDF File (Like Wheels, etc.)
 
 ```bash
 nano ~/ros2_ws/src/my_robot_description/urdf/my_robot.urdf
@@ -290,7 +288,7 @@ ros2 launch my_robot_description display.launch.py
 ```
 When you run the command, the three-wheeled robot will appear on the screen. A control panel will also appear to move the wheels. The visualization in RViz has been completed. we will add weight and collision properties in Gazebo.
 
-## 10. Adding Physical Properties in Gazebo Simulation
+## 8. Adding Physical Properties in Gazebo Simulation
 
 We will add weight and collision properties in Gazebo.
 
@@ -392,7 +390,7 @@ Delete everything inside (line by line= Ctrl+K). Add weight and collision proper
 ```
 The remote-controlled car now has a mass of 7.5 kg and includes collision properties.
 
-## 11. Gazebo Simulation World
+## 9. Gazebo Simulation World
 
 
 Now open a new launch file. We're going to the Gazebo simulation world!
@@ -413,7 +411,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    # Paket yollarını al
+    # Get the package paths.
     pkg_my_robot = get_package_share_directory('my_robot_description')
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
 
@@ -421,7 +419,7 @@ def generate_launch_description():
     with open(urdf_file, 'r') as infp:
         robot_desc = infp.read()
 
-    # 1. Gazebo Harmonic'i başlat (Boş bir dünya ve simülasyonu başlat komutu '-r' ile)
+    # 1. Launch Gazebo Harmonic (start with an empty world and use the -r option to start the simulation).
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
@@ -429,18 +427,18 @@ def generate_launch_description():
         launch_arguments={'gz_args': 'empty.sdf -r'}.items()
     )
 
-    # 2. Robot State Publisher (URDF'yi ROS'a tanıt)
+    # 2. Robot State Publisher 
     rsp = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
         parameters=[{'robot_description': robot_desc}]
     )
 
-    # 3. Robotu Gazebo'da Yarat (Spawn)
+    # 3. Create the robot in Gazebo. (Spawn)
     spawn = Node(
         package='ros_gz_sim',
         executable='create',
-        # Robotu Z ekseninde 0.5 metre yukarıdan bırakıyoruz ki yere düştüğünü görelim!
+        # We drop the robot 0.5 meters above the Z-axis so we can see it fall to the ground!
         arguments=['-name', 'my_simple_robot',
                    '-topic', 'robot_description',
                    '-z', '0.5'],
@@ -477,7 +475,7 @@ This command tells the system to "force software rendering, handle graphics via 
 
 If you can see your car on the screen, the next step is the final one: adding the motor driver.
 
-## 12. Adding the Motor Driver
+## 10. Adding the Motor Driver
 ```bash
 
 nano ~/ros2_ws/src/my_robot_description/urdf/my_robot.urdf
@@ -589,7 +587,7 @@ Delete everything inside (line by line= Ctrl+K). Add motor driver.
 ```
 We have completed all the steps; now it’s time to test the remote-controlled car.
 
-## 13. Remote-Controlled Car Testing
+## 11. Remote-Controlled Car Testing
 
 Close all terminals and open a new terminal. Follow the steps below
 
@@ -625,6 +623,17 @@ Controls:
 * **l** : Turn right
 * **k** : Brake (Stop)
 
+  The remote-controlled car project has been **successfully** completed.
+
+
+  For any questions or feedback:
+
   
+<div align="center">
+  <a href="https://linkedin.com/in/azatkaya1">
+    <img src="https://img.shields.io/badge/LinkedIn-%230077B5.svg?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn">
+  </a>
+
+
 
 
