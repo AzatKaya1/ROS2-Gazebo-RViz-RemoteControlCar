@@ -151,7 +151,7 @@ When rviz is first turned on, a blank screen appears. Follow these steps to brin
 In the URDF code, you will set the wheels to ``` type=continuous ```. This tells ROS that "these wheels are motorized and can rotate around their own axis". You need to send the angle information (Joint State) of the wheels. Add a control panel (Joint State Publisher GUI) to the screen where you can rotate the wheels by dragging them manually.
 
 
-(URDF kodunda tekerlekleri ``` type=continuous ```  olarak ayarlayacaksın. Bu, ROS’a “bu tekerlekler motorlu ve kendi ekseni etrafında dönebilir” demektir. Tekerleklerin açı bilgisini göndermeniz gerekir. Ekrana, tekerlekleri el ile sürükleyerek döndürebileceğiniz bir kontrol paneli ekleyin.
+(URDF kodunda tekerlekleri ``` type=continuous ```  olarak ayarlayacaksın. Bu, ROS’a “bu tekerlekler motorlu ve kendi ekseni etrafında dönebilir” demektir. Tekerleklerin açı bilgisini göndermeniz gerekir. Ekrana, tekerlekleri el ile sürükleyerek döndürebileceğiniz bir kontrol paneli ekleyin.)
 
 - Install Control Panel
 
@@ -245,7 +245,7 @@ Delete everything inside (line by line= Ctrl+K). Add wheel code.
     <parent link="base_link"/>
     <child link="right_wheel"/>
     <origin xyz="-0.15 -0.175 0" rpy="1.5708 0 0"/>
-    <axis xyz="0 0 -1"/> </joint>
+    <axis xyz="0 0 1"/> </joint>
 
   <link name="left_wheel">
     <visual>
@@ -288,4 +288,343 @@ colcon build
 source install/setup.bash
 ros2 launch my_robot_description display.launch.py
 ```
-When you run the command, the three-wheeled robot will appear on the screen. A control panel will also appear to move the wheels.
+When you run the command, the three-wheeled robot will appear on the screen. A control panel will also appear to move the wheels. The visualization in RViz has been completed. we will add weight and collision properties in Gazebo.
+
+## 10. Adding Physical Properties in Gazebo Simulation
+
+We will add weight and collision properties in Gazebo.
+
+```bash
+nano ~/ros2_ws/src/my_robot_description/urdf/my_robot.urdf
+```
+
+Delete everything inside (line by line= Ctrl+K). Add weight and collision properties.
+```xml
+<?xml version="1.0"?>
+<robot name="simple_robot">
+
+  <material name="blue"><color rgba="0 0 1 1"/></material>
+  <material name="black"><color rgba="0 0 0 1"/></material>
+
+  <link name="base_link">
+    <visual>
+      <geometry><box size="0.5 0.3 0.1"/></geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry><box size="0.5 0.3 0.1"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.04" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.14"/>
+    </inertial>
+  </link>
+
+  <link name="right_wheel">
+    <visual>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.0027" ixy="0.0" ixz="0.0" iyy="0.0027" iyz="0.0" izz="0.005"/>
+    </inertial>
+  </link>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel"/>
+    <origin xyz="-0.15 -0.175 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="left_wheel">
+    <visual>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.0027" ixy="0.0" ixz="0.0" iyy="0.0027" iyz="0.0" izz="0.005"/>
+    </inertial>
+  </link>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel"/>
+    <origin xyz="-0.15 0.175 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="caster_wheel">
+    <visual>
+      <geometry><sphere radius="0.05"/></geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry><sphere radius="0.05"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.0005" ixy="0.0" ixz="0.0" iyy="0.0005" iyz="0.0" izz="0.0005"/>
+    </inertial>
+  </link>
+
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="0.2 0 -0.05" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="caster_wheel">
+    <mu1 value="0.001"/>
+    <mu2 value="0.001"/>
+  </gazebo>
+
+</robot>
+
+```
+The remote-controlled car now has a mass of 7.5 kg and includes collision properties.
+
+## 11. Gazebo Simulation World
+
+
+Now open a new launch file. We're going to the Gazebo simulation world!
+```bash
+
+nano ~/ros2_ws/src/my_robot_description/launch/gazebo.launch.py
+
+```
+This code will first open the Gazebo Harmonic world, then process the URDF file you wrote and bring the robot into the simulation world.
+
+```python
+
+import os
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    # Paket yollarını al
+    pkg_my_robot = get_package_share_directory('my_robot_description')
+    pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
+
+    urdf_file = os.path.join(pkg_my_robot, 'urdf', 'my_robot.urdf')
+    with open(urdf_file, 'r') as infp:
+        robot_desc = infp.read()
+
+    # 1. Gazebo Harmonic'i başlat (Boş bir dünya ve simülasyonu başlat komutu '-r' ile)
+    gazebo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
+        ),
+        launch_arguments={'gz_args': 'empty.sdf -r'}.items()
+    )
+
+    # 2. Robot State Publisher (URDF'yi ROS'a tanıt)
+    rsp = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        parameters=[{'robot_description': robot_desc}]
+    )
+
+    # 3. Robotu Gazebo'da Yarat (Spawn)
+    spawn = Node(
+        package='ros_gz_sim',
+        executable='create',
+        # Robotu Z ekseninde 0.5 metre yukarıdan bırakıyoruz ki yere düştüğünü görelim!
+        arguments=['-name', 'my_simple_robot',
+                   '-topic', 'robot_description',
+                   '-z', '0.5'],
+        output='screen'
+    )
+
+    return LaunchDescription([
+        gazebo,
+        rsp,
+        spawn
+    ])
+
+```
+
+- Build, Source and Run
+  
+```bash
+
+cd ~/ros2_ws
+colcon build
+source install/setup.bash
+ros2 launch my_robot_description gazebo.launch.py
+
+```
+
+**If Gazebo did not open, follow the step below.**
+
+```bash
+export LIBGL_ALWAYS_SOFTWARE=1
+```
+
+This command tells the system to "force software rendering, handle graphics via the CPU." Now, run the launch file again.
+
+
+If you can see your car on the screen, the next step is the final one: adding the motor driver.
+
+## 12. Adding the Motor Driver
+```bash
+
+nano ~/ros2_ws/src/my_robot_description/urdf/my_robot.urdf
+
+```
+Delete everything inside (line by line= Ctrl+K). Add motor driver.
+```xml
+
+<?xml version="1.0"?>
+<robot name="simple_robot">
+
+  <material name="blue"><color rgba="0 0 1 1"/></material>
+  <material name="black"><color rgba="0 0 0 1"/></material>
+
+  <link name="base_link">
+    <visual>
+      <geometry><box size="0.5 0.3 0.1"/></geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry><box size="0.5 0.3 0.1"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.04" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.14"/>
+    </inertial>
+  </link>
+
+  <link name="right_wheel">
+    <visual>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.0027" ixy="0.0" ixz="0.0" iyy="0.0027" iyz="0.0" izz="0.005"/>
+    </inertial>
+  </link>
+
+  <joint name="right_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="right_wheel"/>
+    <origin xyz="-0.15 -0.175 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="left_wheel">
+    <visual>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry><cylinder radius="0.1" length="0.05"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.0027" ixy="0.0" ixz="0.0" iyy="0.0027" iyz="0.0" izz="0.005"/>
+    </inertial>
+  </link>
+
+  <joint name="left_wheel_joint" type="continuous">
+    <parent link="base_link"/>
+    <child link="left_wheel"/>
+    <origin xyz="-0.15 0.175 0" rpy="1.5708 0 0"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <link name="caster_wheel">
+    <visual>
+      <geometry><sphere radius="0.05"/></geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <geometry><sphere radius="0.05"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.0005" ixy="0.0" ixz="0.0" iyy="0.0005" iyz="0.0" izz="0.0005"/>
+    </inertial>
+  </link>
+
+  <joint name="caster_wheel_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="caster_wheel"/>
+    <origin xyz="0.2 0 -0.05" rpy="0 0 0"/>
+  </joint>
+
+  <gazebo reference="caster_wheel">
+    <mu1 value="0.001"/>
+    <mu2 value="0.001"/>
+  </gazebo>
+
+<gazebo>
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>0.35</wheel_separation>
+      <wheel_radius>0.1</wheel_radius>
+      <topic>cmd_vel</topic>
+    </plugin>
+  </gazebo>
+
+</robot>
+
+
+```
+We have completed all the steps; now it’s time to test the remote-controlled car.
+
+## 13. Remote-Controlled Car Testing
+
+Close all terminals and open a new terminal. Follow the steps below
+
+```bash
+cd ~/ros2_ws
+colcon build
+source install/setup.bash
+export LIBGL_ALWAYS_SOFTWARE=1
+ros2 launch my_robot_description gazebo.launch.py
+```
+Open a new terminal. This terminal will serve as the bridge between ROS and Gazebo.
+
+```bash
+
+source ~/ros2_ws/install/setup.bash
+ros2 run ros_gz_bridge parameter_bridge /cmd_vel@geometry_msgs/msg/Twist@gz.msgs.Twist
+
+```
+
+Open a third terminal and run the keyboard controller.
+```bash
+source ~/ros2_ws/install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+```
+
+**BOOOM!** Your remote-controlled car is ready to drive. 
+
+Controls:
+
+* **i** : Move forward 
+* **,** (comma) : Move backward
+* **j** : Turn left
+* **l** : Turn right
+* **k** : Brake (Stop)
+
+  
+
+
